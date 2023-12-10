@@ -19,4 +19,8 @@ for output in outputs:
     print(f"Prompt: {prompt!r}, Generated text: {generated_text!r}")
 
 end_time = time.time()
-print(f"Time taken: {end_time - start_time} seconds")
+time_taken = end_time - start_time
+with open("time_taken.txt", "w") as file:
+    file.write(time_taken)
+
+print(f"Time taken: {time_taken} seconds")
