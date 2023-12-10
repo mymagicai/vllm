@@ -8,7 +8,7 @@ with open('sentences.txt', 'r') as f:
 max_tokens = 512
 sampling_params = SamplingParams(temperature=0.8, top_p=0.95, max_tokens=max_tokens)
 
-llm = LLM(model="TheBloke/Llama-2-70B-AWQ", quantization="AWQ", tensor_parallel_size=2)
+llm = LLM(model="TheBloke/Llama-2-70B-AWQ", quantization="AWQ")
 
 start_time = time.time()
 outputs = llm.generate(prompts, sampling_params)
