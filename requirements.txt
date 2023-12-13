@@ -2,3 +2,6 @@ vllm
 autoawq
 ray
 boto3
+fastapi[all] 
+celery[redis]
+
