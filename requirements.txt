@@ -1,3 +1,4 @@
 vllm
 autoawq
 ray
+boto3
