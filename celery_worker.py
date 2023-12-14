@@ -1,10 +1,22 @@
-from fastapi import HTTPException
-from celery_config import celery
+from celery import Celery
 from vllm import LLM, SamplingParams
 import boto3
 import json
 
-# Initialize AWS S3 client
+celery = Celery(
+    "worker",
+    broker="redis://localhost:6379/0",
+    backend="redis://localhost:6379/0",
+)
+
+celery.conf.update(
+    task_serializer="json",
+    accept_content=["json"],
+    result_serializer="json",
+    timezone="UTC",
+    enable_utc=True,
+)
+
 s3 = boto3.client(
     "s3",
     aws_access_key_id="AKIAX2N64C7CDKW36HFS",
@@ -13,7 +25,7 @@ s3 = boto3.client(
 
 
 def list_txt_files(bucket_name):
-    s3 = boto3.client("s3")
+    # s3 = boto3.client("s3")
     response = s3.list_objects_v2(Bucket=bucket_name)
     txt_files = [
         obj["Key"]
@@ -24,7 +36,7 @@ def list_txt_files(bucket_name):
 
 
 def read_s3_files(bucket_name, file_names, user_question):
-    s3 = boto3.client("s3")
+    # s3 = boto3.client("s3")
     file_contents = {}
     for file_name in file_names:
         clean_file_name = file_name.rsplit(".", 1)[0]  # Remove the '.txt' extension
@@ -41,7 +53,7 @@ Answer: """
 
 
 def write_to_s3(bucket_name, file_name, data):
-    s3 = boto3.resource("s3")
+    # s3 = boto3.resource("s3")
     s3object = s3.Object(bucket_name, file_name)
     s3object.put(Body=(bytes(json.dumps(data).encode("UTF-8"))))
 
@@ -50,7 +62,7 @@ results = {}
 
 
 @celery.task
-async def process_question(task_id: str, question: str):
+def process_question(task_id: str, question: str):
     try:
         bucket_name = "mymagicai-batch-test"
         output_file_name = "ai_response.json"
@@ -60,10 +72,8 @@ async def process_question(task_id: str, question: str):
             temperature=0, top_p=0.95, max_tokens=max_tokens
         )
 
-        # List .txt files in the bucket
         txt_file_names = list_txt_files(bucket_name)
 
-        # Read from S3
         file_contents = read_s3_files(
             bucket_name,
             txt_file_names,
@@ -87,11 +97,8 @@ async def process_question(task_id: str, question: str):
 
         json_string = json.dumps(output_json)
 
-        # Write the result back to S3
         write_to_s3(bucket_name, output_file_name, json_string)
 
-        # Save result in results dictionary
         results[task_id] = output_json
-
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Error in task {task_id}: {e}")

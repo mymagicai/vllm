@@ -1,15 +1,16 @@
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI
 from pydantic import BaseModel
 import uuid
 from typing import Dict
 from celery_worker import process_question
 
 
+
 app = FastAPI()
 
 
-# For storing results
 results: Dict[str, str] = {}
+
 
 
 class Question(BaseModel):
@@ -17,9 +18,9 @@ class Question(BaseModel):
 
 
 @app.post("/submit_question/")
-async def submit_question(background_tasks: BackgroundTasks, question: Question):
+async def submit_question(question: Question):
     task_id = str(uuid.uuid4())
-    background_tasks.add_task(process_question, task_id, question.user_question)
+    process_question.delay(task_id, question.user_question)
     return {"task_id": task_id}
 
 
@@ -31,5 +32,4 @@ async def get_result(task_id: str):
     elif task.state != "FAILURE":
         return {"status": task.state, "result": task.result}
     else:
-        # something went wrong in the background job
         return {"status": task.state, "result": str(task.info)}

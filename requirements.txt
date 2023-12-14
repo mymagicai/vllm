@@ -4,4 +4,5 @@ ray
 boto3
 fastapi[all] 
 celery[redis]
+stanford-stk
 
