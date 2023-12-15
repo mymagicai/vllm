@@ -5,21 +5,20 @@ from typing import Dict
 from celery_worker import process_question
 
 
-
 app = FastAPI()
 
 
 results: Dict[str, str] = {}
 
 
-
 class Question(BaseModel):
     user_question: str
 
 
-@app.post("/submit_question/")
+@app.post("/submit_question")
 async def submit_question(question: Question):
     task_id = str(uuid.uuid4())
+    print(f"Returning task ID: {task_id}")
     process_question.delay(task_id, question.user_question)
     return {"task_id": task_id}
 

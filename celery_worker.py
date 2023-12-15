@@ -1,14 +1,26 @@
+import logging
 from celery import Celery
 from vllm import LLM, SamplingParams
 import boto3
 import json
+import logging
+from celery.signals import setup_logging
+
+
+@setup_logging.connect
+def config_loggers(*args, **kwargs):
+    logger = logging.getLogger("celery")
+    logger.handlers = []  # Remove all handlers
+    logger.propagate = True  # Propagate logs to the root logger
+
+
+logging.basicConfig(level=logging.INFO)
 
 celery = Celery(
-    "worker",
+    "tasks",
     broker="redis://localhost:6379/0",
-    backend="redis://localhost:6379/0",
+    backend="redis://localhost:6379/1",
 )
-
 celery.conf.update(
     task_serializer="json",
     accept_content=["json"],
@@ -25,7 +37,7 @@ s3 = boto3.client(
 
 
 def list_txt_files(bucket_name):
-    # s3 = boto3.client("s3")
+    s3 = boto3.client("s3")
     response = s3.list_objects_v2(Bucket=bucket_name)
     txt_files = [
         obj["Key"]
@@ -36,7 +48,7 @@ def list_txt_files(bucket_name):
 
 
 def read_s3_files(bucket_name, file_names, user_question):
-    # s3 = boto3.client("s3")
+    s3 = boto3.client("s3")
     file_contents = {}
     for file_name in file_names:
         clean_file_name = file_name.rsplit(".", 1)[0]  # Remove the '.txt' extension
@@ -53,7 +65,7 @@ Answer: """
 
 
 def write_to_s3(bucket_name, file_name, data):
-    # s3 = boto3.resource("s3")
+    s3 = boto3.resource("s3")
     s3object = s3.Object(bucket_name, file_name)
     s3object.put(Body=(bytes(json.dumps(data).encode("UTF-8"))))
 
@@ -63,42 +75,37 @@ results = {}
 
 @celery.task
 def process_question(task_id: str, question: str):
-    try:
-        bucket_name = "mymagicai-batch-test"
-        output_file_name = "ai_response.json"
+    bucket_name = "mymagicai-batch-test"
+    output_file_name = "ai_response.json"
 
-        max_tokens = 512
-        sampling_params = SamplingParams(
-            temperature=0, top_p=0.95, max_tokens=max_tokens
-        )
+    max_tokens = 512
+    sampling_params = SamplingParams(temperature=0, top_p=0.95, max_tokens=max_tokens)
 
-        txt_file_names = list_txt_files(bucket_name)
+    txt_file_names = list_txt_files(bucket_name)
 
-        file_contents = read_s3_files(
-            bucket_name,
-            txt_file_names,
-            user_question=f"{question}",
-        )
+    file_contents = read_s3_files(
+        bucket_name,
+        txt_file_names,
+        user_question=f"{question}",
+    )
 
-        llm = LLM(
-            model="TheBloke/Llama-2-70B-AWQ",
-            quantization="AWQ",
-            tensor_parallel_size=2,
-            tokenizer="hf-internal-testing/llama-tokenizer",
-        )
+    llm = LLM(
+        model="TheBloke/Llama-2-70B-AWQ",
+        quantization="AWQ",
+        tensor_parallel_size=2,
+        tokenizer="hf-internal-testing/llama-tokenizer",
+    )
 
-        prompts = [x for x in file_contents.values()]
-        outputs = llm.generate(prompts, sampling_params)
+    prompts = [x for x in file_contents.values()]
+    outputs = llm.generate(prompts, sampling_params)
 
-        output_json = [
-            {"id": i, "prompt": output.prompt, "output": output.outputs[0].text}
-            for i, output in enumerate(outputs)
-        ]
+    output_json = [
+        {"id": i, "prompt": output.prompt, "output": output.outputs[0].text}
+        for i, output in enumerate(outputs)
+    ]
 
-        json_string = json.dumps(output_json)
+    json_string = json.dumps(output_json)
 
-        write_to_s3(bucket_name, output_file_name, json_string)
+    write_to_s3(bucket_name, output_file_name, json_string)
 
-        results[task_id] = output_json
-    except Exception as e:
-        print(f"Error in task {task_id}: {e}")
+    results[task_id] = output_json
