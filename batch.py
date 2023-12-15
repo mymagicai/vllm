@@ -18,7 +18,6 @@ class Question(BaseModel):
 @app.post("/submit_question")
 async def submit_question(question: Question):
     task_id = str(uuid.uuid4())
-    print(f"Returning task ID: {task_id}")
     process_question.delay(task_id, question.user_question)
     return {"task_id": task_id}
 
