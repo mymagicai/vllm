@@ -70,11 +70,8 @@ def write_to_s3(bucket_name, file_name, data):
     s3object.put(Body=(bytes(json.dumps(data).encode("UTF-8"))))
 
 
-results = {}
-
-
 @celery.task
-def process_question(task_id: str, question: str):
+def process_question(question: str):
     bucket_name = "mymagicai-batch-test"
     output_file_name = "ai_response.json"
 
@@ -108,4 +105,4 @@ def process_question(task_id: str, question: str):
 
     write_to_s3(bucket_name, output_file_name, json_string)
 
-    results[task_id] = output_json
+    return output_json

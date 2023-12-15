@@ -17,9 +17,8 @@ class Question(BaseModel):
 
 @app.post("/submit_question")
 async def submit_question(question: Question):
-    task_id = str(uuid.uuid4())
-    process_question.delay(task_id, question.user_question)
-    return {"task_id": task_id}
+    task = process_question.delay(question.user_question)
+    return {"task_id": task.id}
 
 
 @app.get("/get_result/{task_id}")
