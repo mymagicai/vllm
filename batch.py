@@ -1,14 +1,9 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-import uuid
-from typing import Dict
-from celery_worker import process_question
+from celery_worker import process_question, bucket_name, output_file_name
 
 
 app = FastAPI()
-
-
-results: Dict[str, str] = {}
 
 
 class Question(BaseModel):
@@ -25,8 +20,11 @@ async def submit_question(question: Question):
 async def get_result(task_id: str):
     task = process_question.AsyncResult(task_id)
     if task.state == "PENDING":
-        return {"status": "Pending..."}
+        return {"status": "PENDING"}
     elif task.state != "FAILURE":
-        return {"status": task.state, "result": task.result}
+        return {
+            "status": task.state,
+            "result": f"Result is stored as {bucket_name}/{output_file_name}",
+        }
     else:
         return {"status": task.state, "result": str(task.info)}

@@ -6,6 +6,9 @@ import json
 import logging
 from celery.signals import setup_logging
 
+bucket_name = "mymagicai-batch-test"
+output_file_name = "ai_response.json"
+
 
 @setup_logging.connect
 def config_loggers(*args, **kwargs):
@@ -72,9 +75,6 @@ def write_to_s3(bucket_name, file_name, data):
 
 @celery.task
 def process_question(question: str):
-    bucket_name = "mymagicai-batch-test"
-    output_file_name = "ai_response.json"
-
     max_tokens = 512
     sampling_params = SamplingParams(temperature=0, top_p=0.95, max_tokens=max_tokens)
 
@@ -104,5 +104,3 @@ def process_question(question: str):
     json_string = json.dumps(output_json)
 
     write_to_s3(bucket_name, output_file_name, json_string)
-
-    return output_json
