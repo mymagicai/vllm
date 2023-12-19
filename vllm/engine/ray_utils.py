@@ -64,15 +64,15 @@ def initialize_cluster(
     if parallel_config.worker_use_ray or engine_use_ray:
         if ray is None:
             raise ImportError(
-                "Ray is not installed. Please install Ray to use distributed "
-                "serving.")
-        # Connect to a ray cluster.
-        if is_hip():
-            ray.init(address=ray_address,
-                     ignore_reinit_error=True,
-                     num_gpus=parallel_config.world_size)
-        else:
-            ray.init(address=ray_address, ignore_reinit_error=True)
+                "Ray is not installed. Please install Ray to use distributed serving.")
+        # Only initialize Ray if it's not already initialized
+        if not ray.is_initialized():
+            if is_hip():
+                ray.init(address=ray_address,
+                         ignore_reinit_error=True,
+                         num_gpus=parallel_config.world_size)
+            else:
+                ray.init(address=ray_address, ignore_reinit_error=True)
 
     if not parallel_config.worker_use_ray:
         # Initialize cluster locally.
