@@ -6,7 +6,7 @@ import json
 import logging
 from celery.signals import setup_logging
 
-bucket_name = "mymagicai-batch-test"
+# bucket_name = "mymagicai-batch-test"
 output_file_name = "ai_response.json"
 
 
@@ -58,7 +58,7 @@ def read_s3_files(bucket_name, file_names, user_question):
         obj = s3.get_object(Bucket=bucket_name, Key=file_name)
         content = obj["Body"].read().decode("utf-8")
         modified_content = f"""<<SYS>>
-Answer the user question based on the following content. Do not give explanations, just answer the question directly as if you were a function that takes user input and returns an answer.
+Answer the user question based on the following content. Do not give explanations, just answer the question directly as if you were a function that takes user input and returns an output.
 <</SYS>>
 User Question: ```{user_question}```
 Content: ```{content}```
@@ -74,7 +74,8 @@ def write_to_s3(bucket_name, file_name, data):
 
 
 @celery.task
-def process_question(question: str):
+def process_question(question: str, bucket: str):
+    bucket_name = bucket
     max_tokens = 512
     sampling_params = SamplingParams(temperature=0, top_p=0.95, max_tokens=max_tokens)
 
@@ -90,7 +91,8 @@ def process_question(question: str):
         model="TheBloke/Llama-2-70B-AWQ",
         quantization="AWQ",
         tensor_parallel_size=2,
-        tokenizer="hf-internal-testing/llama-tokenizer",
+        tokenizer="hf-internal-testing/llama-tokenizer",  # for faster startup
+        enforce_eager=True,
     )
 
     prompts = [x for x in file_contents.values()]
