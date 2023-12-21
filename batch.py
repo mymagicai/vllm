@@ -2,8 +2,6 @@ from vllm import LLM, SamplingParams
 import boto3
 import json
 
-s3 = boto3.client('s3', aws_access_key_id='AKIAX2N64C7CNXNST4VH', aws_secret_access_key='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')
-
 def list_txt_files(bucket_name):
     s3 = boto3.client('s3')
     response = s3.list_objects_v2(Bucket=bucket_name)
